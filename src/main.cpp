@@ -2,5 +2,6 @@
 
 int main() {
     std::cout << "Hello, World!\n";
+    std::cout << "Welcome to C++ programming!\n";
     return 0;
 }
