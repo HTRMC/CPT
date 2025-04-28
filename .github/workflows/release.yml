@@ -9,7 +9,7 @@ on:
 permissions:
   contents: write
   id-token: write
-  actions: read  # Added for accessing artifacts
+  actions: read  # For accessing artifacts
 
 jobs:
   release:
@@ -26,7 +26,43 @@ jobs:
           workflow: build.yml
           workflow_conclusion: success
           run_id: ${{ github.event.workflow_run.id }}
-          path: artifacts
+          path: all-artifacts
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release-files/linux
+          mkdir -p release-files/windows
+          mkdir -p release-files/macos
+          
+          # Find and copy only executables to properly organized folders
+          if [ -d "all-artifacts/build-ubuntu-latest" ]; then
+            find all-artifacts/build-ubuntu-latest -name "hello" -type f -executable -exec cp {} release-files/linux/ \;
+            find all-artifacts/build-ubuntu-latest -name "test_assert" -type f -executable -exec cp {} release-files/linux/ \;
+          fi
+          
+          if [ -d "all-artifacts/build-windows-latest" ]; then
+            find all-artifacts/build-windows-latest -name "hello.exe" -exec cp {} release-files/windows/ \;
+            find all-artifacts/build-windows-latest -name "test_assert.exe" -exec cp {} release-files/windows/ \;
+          fi
+          
+          if [ -d "all-artifacts/build-macos-latest" ]; then
+            find all-artifacts/build-macos-latest -name "hello" -type f -executable -exec cp {} release-files/macos/ \;
+            find all-artifacts/build-macos-latest -name "test_assert" -type f -executable -exec cp {} release-files/macos/ \;
+          fi
+          
+          # Create README for the release
+          cat > release-files/README.md << EOF
+          # HelloCI Release
+          
+          This release contains built executables for multiple platforms:
+          
+          - Linux: in the \`linux\` directory
+          - Windows: in the \`windows\` directory
+          - macOS: in the \`macos\` directory
+          
+          Each platform directory contains the main application executable (\`hello\` or \`hello.exe\`) 
+          and the test executable (\`test_assert\` or \`test_assert.exe\`).
+          EOF
 
       - name: Bump version and push tag
         id: tag_version
@@ -40,7 +76,7 @@ jobs:
           tag: ${{ steps.tag_version.outputs.new_tag }}
           name: Release ${{ steps.tag_version.outputs.new_tag }}
           body: ${{ steps.tag_version.outputs.changelog }}
-          artifacts: 'artifacts/**/*'
+          artifacts: 'release-files/**/*'
           allowUpdates: true
           makeLatest: true
         env:
